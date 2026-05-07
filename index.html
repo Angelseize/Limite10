@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LÍMITE 10: EL CÓDIGO DE LA ARENA</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Oswald:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blood: #c0392b; --ember: #e67e22; --gold: #f1c40f;
+    --ash: #1a1a1a; --smoke: #2c2c2c; --steel: #4a4a4a;
+    --mist: #7f8c8d; --bone: #ecf0f1;
+    --atk: #e74c3c; --def: #3498db; --hp: #2ecc71; --dead: #555;
+    --poison: #9b59b6; --shield: #16a085;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0d0d0d; color:var(--bone); font-family:'Share Tech Mono',monospace; min-height:100vh; overflow-x:hidden; }
+  body::before { content:''; position:fixed; inset:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events:none; z-index:1000; }
+  body::after { content:''; position:fixed; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px); pointer-events:none; z-index:999; }
+
+.screen { display:none; }
+.screen.active { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:20px; }
+
+#screen-title { background:radial-gradient(ellipse at center,#1a0a00 0%,#0d0d0d 70%); text-align:center; gap:26px; }
+.title-glow { font-family:'Bebas Neue',sans-serif; font-size:clamp(60px,12vw,120px); letter-spacing:8px; line-height:0.9; color:var(--bone); text-shadow:0 0 40px var(--ember),0 0 80px rgba(230,126,34,0.4); animation:flicker 4s infinite; }
+.title-sub { font-family:'Oswald',sans-serif; font-size:clamp(11px,3vw,17px); letter-spacing:6px; color:var(--ember); text-transform:uppercase; }
+.title-divider { width:200px; height:1px; background:linear-gradient(90deg,transparent,var(--ember),transparent); margin:0 auto; }
+@keyframes flicker { 0%,95%,100%{opacity:1}96%{opacity:0.8}97%{opacity:1}98%{opacity:0.6}99%{opacity:1} }
+
+.victory-counter { font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:3px; color:var(--gold); border:1px solid rgba(241,196,15,0.4); padding:6px 14px; background:rgba(241,196,15,0.05); }
+
+#screen-setup { background:#0d0d0d; gap:18px; justify-content:flex-start; padding-top:28px; padding-bottom:28px; }
+.setup-title { font-family:'Bebas Neue',sans-serif; font-size:30px; letter-spacing:4px; color:var(--gold); text-align:center; }
+.section-label { font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:3px; color:var(--mist); text-transform:uppercase; text-align:center; }
+.mode-selector { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+.mode-btn { font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:2px; padding:7px 14px; border:1px solid var(--steel); background:transparent; color:var(--mist); cursor:pointer; text-transform:uppercase; transition:all 0.2s; }
+.mode-btn.selected { border-color:var(--ember); color:var(--ember); background:rgba(230,126,34,0.1); }
+
+.picker-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:8px; width:100%; max-width:720px; }
+.picker-card { background:var(--smoke); border:2px solid var(--steel); padding:9px; cursor:pointer; transition:all 0.2s; display:flex; flex-direction:column; gap:5px; position:relative; }
+.picker-card:hover { border-color:var(--mist); }
+.picker-card.chosen { border-color:var(--gold); background:rgba(241,196,15,0.07); }
+.picker-card.disabled { opacity:0.32; cursor:not-allowed; pointer-events:none; }
+.picker-badge { position:absolute; top:5px; right:5px; font-family:'Bebas Neue',sans-serif; font-size:13px; color:var(--gold); width:18px; height:18px; border-radius:50%; background:rgba(241,196,15,0.2); display:none; align-items:center; justify-content:center; }
+.picker-card.chosen .picker-badge { display:flex; }
+.p-emoji { font-size:18px; text-align:center; }
+.p-name { font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1px; color:var(--bone); line-height:1.2; }
+.p-type { font-size:8px; letter-spacing:2px; color:var(--mist); text-transform:uppercase; }
+.p-stats { display:flex; gap:7px; font-family:'Bebas Neue',sans-serif; font-size:14px; }
+.p-stats .s-atk { color:var(--atk); } .p-stats .s-def { color:var(--def); } .p-stats .s-hp { color:var(--hp); }
+.ability-slot { font-size:8px; letter-spacing:1px; line-height:1.4; border-top:1px solid rgba(255,255,255,0.1); padding-top:4px; display:flex; gap:4px; align-items:flex-start; }
+.ability-slot.unlocked { color:var(--gold); }
+.ability-slot.locked { color:var(--mist); font-style:italic; }
+.lock-icon { font-size:9px; flex-shrink:0; }
+.picker-counter { font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:3px; color:var(--mist); text-align:center; text-transform:uppercase; }
+.picker-counter span { color:var(--gold); }
+
+#screen-game { background:#0d0d0d; padding:0; width:100%; justify-content:flex-start; }
+.game-layout { width:100%; max-width:920px; margin:0 auto; padding:12px; display:flex; flex-direction:column; gap:9px; min-height:100vh; }
+.game-header { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--steel); padding-bottom:7px; gap:8px; flex-wrap:wrap; }
+.game-logo { font-family:'Bebas Neue',sans-serif; font-size:21px; letter-spacing:4px; color:var(--ember); }
+.game-mode-badge { font-size:9px; letter-spacing:3px; color:var(--mist); text-transform:uppercase; border:1px solid var(--steel); padding:3px 8px; }
+.round-counter { font-family:'Bebas Neue',sans-serif; font-size:17px; letter-spacing:2px; color:var(--gold); }
+.player-label { font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:4px; text-transform:uppercase; color:var(--mist); display:flex; align-items:center; gap:8px; }
+.player-label::after { content:''; flex:1; height:1px; background:var(--steel); }
+.cards-row { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+.arena-divider { display:flex; align-items:center; gap:10px; }
+.arena-divider::before,.arena-divider::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,transparent,var(--blood),transparent); }
+.arena-divider-text { font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:6px; color:var(--blood); }
+
+.card { background:var(--smoke); border:1px solid var(--steel); padding:7px 5px; position:relative; cursor:pointer; transition:all 0.2s; min-height:120px; display:flex; flex-direction:column; gap:3px; }
+.card.active-card { border-color:var(--gold); box-shadow:0 0 10px rgba(241,196,15,0.3); }
+.card.enemy-card { cursor:default; }
+.card.dead { opacity:0.22; background:#111; border-color:#333; cursor:default; }
+.card.shell { border-color:var(--def); background:rgba(52,152,219,0.07); }
+.card.poisoned { border-color:var(--poison); animation:pulse-poison 1.5s infinite; }
+.card.exposed { border-color:var(--ember); background:rgba(230,126,34,0.1); cursor:pointer; }
+.card.target-pick { animation:pb-target 1s infinite; }
+@keyframes pulse-poison { 0%,100%{box-shadow:0 0 0 rgba(155,89,182,0)}50%{box-shadow:0 0 8px rgba(155,89,182,0.5)} }
+@keyframes pb-target { 0%,100%{box-shadow:0 0 0 rgba(230,126,34,0)}50%{box-shadow:0 0 12px rgba(230,126,34,0.6)} }
+.card.selectable { animation:pb 1.3s infinite; }
+@keyframes pb { 0%,100%{box-shadow:0 0 0 rgba(241,196,15,0)}50%{box-shadow:0 0 9px rgba(241,196,15,0.35)} }
+.c-emoji { font-size:15px; text-align:center; line-height:1; }
+.c-name { font-family:'Bebas Neue',sans-serif; font-size:10px; letter-spacing:1px; color:var(--bone); text-align:center; line-height:1.2; }
+.c-stats { display:flex; flex-direction:column; gap:2px; flex:1; }
+.sbr { display:flex; align-items:center; gap:3px; }
+.sbl { width:20px; flex-shrink:0; font-family:'Bebas Neue',sans-serif; font-size:10px; }
+.sbl.atk{color:var(--atk)} .sbl.def{color:var(--def)} .sbl.hp{color:var(--hp)}
+.sbt { flex:1; height:4px; background:rgba(255,255,255,0.05); }
+.sbf { height:100%; transition:width 0.3s; }
+.sbf.atk{background:var(--atk)} .sbf.def{background:var(--def)} .sbf.hp{background:var(--hp)}
+.sbv { font-family:'Bebas Neue',sans-serif; font-size:10px; width:13px; text-align:right; color:var(--mist); }
+.atk-spent { text-decoration:line-through; opacity:0.3; }
+.c-status { font-size:7px; letter-spacing:1px; text-align:center; text-transform:uppercase; min-height:10px; }
+.c-shield-cd { font-size:7px; color:var(--shield); text-align:center; letter-spacing:1px; }
+.c-ability { font-size:7px; color:var(--gold); text-align:center; letter-spacing:1px; border-top:1px solid rgba(241,196,15,0.2); padding-top:2px; line-height:1.3; }
+.c-ability.locked { color:var(--mist); }
+
+.action-panel { background:var(--smoke); border:1px solid var(--steel); padding:10px; display:flex; flex-direction:column; gap:7px; }
+.action-title { font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:4px; text-transform:uppercase; color:var(--mist); text-align:center; }
+.action-buttons { display:flex; gap:5px; justify-content:center; flex-wrap:wrap; }
+.action-btn { font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:2px; padding:7px 13px; border:1px solid; background:transparent; cursor:pointer; transition:all 0.2s; text-transform:uppercase; }
+.action-btn.attack{border-color:var(--atk);color:var(--atk)} .action-btn.attack:hover:not(:disabled),.action-btn.attack.chosen{background:var(--atk);color:var(--ash);box-shadow:0 0 14px rgba(231,76,60,0.5)}
+.action-btn.shield{border-color:var(--shield);color:var(--shield)} .action-btn.shield:hover:not(:disabled),.action-btn.shield.chosen{background:var(--shield);color:var(--ash);box-shadow:0 0 14px rgba(22,160,133,0.5)}
+.action-btn.defend{border-color:var(--def);color:var(--def)} .action-btn.defend:hover:not(:disabled),.action-btn.defend.chosen{background:var(--def);color:var(--ash)}
+.action-btn.transfer{border-color:var(--gold);color:var(--gold)} .action-btn.transfer:hover:not(:disabled),.action-btn.transfer.chosen{background:var(--gold);color:var(--ash)}
+.action-btn.special{border-color:#9b59b6;color:#9b59b6} .action-btn.special:hover:not(:disabled),.action-btn.special.chosen{background:#9b59b6;color:#fff;box-shadow:0 0 14px rgba(155,89,182,0.5)}
+.action-btn:disabled{opacity:0.25;cursor:not-allowed}
+.confirm-btn { font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:4px; padding:9px 32px; border:1px solid var(--gold); background:transparent; color:var(--gold); cursor:pointer; transition:all 0.2s; text-transform:uppercase; align-self:center; }
+.confirm-btn:hover:not(:disabled){background:var(--gold);color:var(--ash);box-shadow:0 0 14px rgba(241,196,15,0.4)}
+.confirm-btn:disabled{opacity:0.25;cursor:not-allowed}
+.transfer-panel{display:none;background:rgba(241,196,15,0.04);border:1px solid rgba(241,196,15,0.3);padding:9px;gap:7px;flex-direction:column;align-items:center}
+.transfer-panel.visible{display:flex}
+.transfer-title{font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:3px;color:var(--gold);text-transform:uppercase}
+.transfer-warning{font-size:9px;color:var(--ember);text-align:center;letter-spacing:1px;line-height:1.5;max-width:300px}
+.transfer-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}
+.transfer-opt{font-family:'Oswald',sans-serif;font-size:9px;padding:4px 8px;border:1px solid var(--steel);background:transparent;color:var(--mist);cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all 0.2s}
+.transfer-opt.selected{border-color:var(--gold);color:var(--gold);background:rgba(241,196,15,0.1)}
+
+.status-bar{font-size:9px;letter-spacing:2px;color:var(--mist);text-align:center;text-transform:uppercase;padding:5px;border:1px solid rgba(255,255,255,0.05);background:rgba(255,255,255,0.02);min-height:26px;display:flex;align-items:center;justify-content:center}
+.battle-log{background:#111;border:1px solid var(--steel);padding:9px;height:95px;overflow-y:auto;font-size:9px;line-height:2;letter-spacing:1px;scrollbar-width:thin;scrollbar-color:var(--steel) transparent}
+.log-line{color:var(--mist)} .attack-log{color:var(--atk)} .kill{color:var(--blood)} .ability{color:#9b59b6} .system{color:var(--gold)} .shield-log{color:var(--shield)}
+
+.btn-primary{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:4px;padding:13px 38px;border:1px solid var(--ember);background:transparent;color:var(--ember);cursor:pointer;text-transform:uppercase;transition:all 0.25s}
+.btn-primary:hover{background:var(--ember);color:var(--ash);box-shadow:0 0 28px rgba(230,126,34,0.5)}
+.btn-primary:disabled{opacity:0.3;cursor:not-allowed}
+.btn-secondary{font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:3px;padding:9px 26px;border:1px solid var(--steel);background:transparent;color:var(--mist);cursor:pointer;text-transform:uppercase;transition:all 0.2s}
+.btn-secondary:hover{border-color:var(--mist);color:var(--bone)}
+
+#screen-result{background:radial-gradient(ellipse at center,#1a0505 0%,#0d0d0d 70%);gap:22px;text-align:center}
+.result-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(50px,10vw,90px);letter-spacing:6px;animation:flicker 3s infinite}
+.result-title.win{color:var(--gold);text-shadow:0 0 40px rgba(241,196,15,0.6)}
+.result-title.lose{color:var(--blood);text-shadow:0 0 40px rgba(192,57,43,0.6)}
+.unlock-msg{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:var(--gold);border:1px solid var(--gold);padding:12px 24px;background:rgba(241,196,15,0.05);max-width:400px;line-height:1.4}
+
+.clash-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:500;justify-content:center;align-items:center;flex-direction:column;gap:16px;padding:20px}
+.clash-overlay.visible{display:flex}
+.clash-text{font-family:'Bebas Neue',sans-serif;font-size:clamp(40px,8vw,80px);letter-spacing:8px;animation:ca 0.8s ease-out forwards}
+@keyframes ca{0%{transform:scale(3);opacity:0}50%{transform:scale(1.1);opacity:1}100%{transform:scale(1);opacity:1}}
+.clash-result{font-family:'Oswald',sans-serif;font-size:clamp(11px,2.2vw,14px);letter-spacing:2px;color:var(--bone);text-align:center;max-width:520px;padding:0 20px;line-height:2;max-height:50vh;overflow-y:auto}
+
+/* Shop / Tienda */
+#screen-shop { background:radial-gradient(ellipse at center,#0a1a1a 0%,#0d0d0d 70%); gap:18px; justify-content:flex-start; padding-top:28px; padding-bottom:28px; }
+.shop-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; width:100%; max-width:920px; }
+.shop-item { background:var(--smoke); border:1px solid var(--steel); padding:12px; display:flex; flex-direction:column; gap:6px; position:relative; }
+.shop-item.unlocked { border-color:var(--gold); background:rgba(241,196,15,0.04); }
+.shop-item.affordable { border-color:var(--shield); }
+.shop-header { display:flex; gap:8px; align-items:center; }
+.shop-emoji { font-size:24px; }
+.shop-creature { font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:2px; color:var(--mist); }
+.shop-ab-name { font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:2px; color:var(--bone); margin-top:4px; }
+.shop-ab-name.unlocked { color:var(--gold); }
+.shop-cryptic { font-style:italic; font-size:10px; color:var(--mist); line-height:1.5; padding:6px 0; border-top:1px dashed rgba(255,255,255,0.1); }
+.shop-full-desc { font-size:10px; color:var(--gold); line-height:1.5; padding:6px 0; border-top:1px dashed rgba(241,196,15,0.2); }
+.shop-cost { display:flex; justify-content:space-between; align-items:center; margin-top:4px; }
+.shop-cost-text { font-size:11px; color:var(--ember); letter-spacing:2px; }
+.shop-buy { font-family:'Bebas Neue',sans-serif; font-size:11px; padding:5px 12px; border:1px solid var(--shield); background:transparent; color:var(--shield); cursor:pointer; letter-spacing:2px; }
+.shop-buy:hover:not(:disabled) { background:var(--shield); color:var(--ash); }
+.shop-buy:disabled { opacity:0.3; cursor:not-allowed; border-color:var(--steel); color:var(--steel); }
+.shop-status-unlocked { font-size:10px; color:var(--gold); letter-spacing:2px; }
+
+@media(max-width:580px){
+.cards-row{grid-template-columns:repeat(2,1fr)}
+.picker-grid{grid-template-columns:repeat(2,1fr)}
+.action-btn{font-size:11px;padding:6px 10px}
+.shop-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="clash-overlay" id="clashOverlay">
+  <div class="clash-text" id="clashText" style="color:var(--blood)">CHOQUE</div>
+  <div class="clash-result" id="clashResult"></div>
+  <button class="btn-secondary" onclick="dismissClash()" style="margin-top:6px">CONTINUAR</button>
+</div>
+
+<!-- TITLE -->
+<div class="screen active" id="screen-title">
+  <div class="title-glow">LÍMITE<br>10</div>
+  <div class="title-sub">El Código de la Arena · Proyecto REPSA</div>
+  <div class="title-divider"></div>
+  <p style="font-size:10px;letter-spacing:2px;color:var(--mist);max-width:340px;text-align:center;line-height:2">
+    Ocho criaturas reales del Pedregal de San Ángel.<br>
+    Combate biológico. Estrategia pura.
+  </p>
+  <div class="victory-counter">VICTORIAS: <span id="winCounter">0</span> · TOKENS: <span id="tokenCounter">0</span></div>
+  <button class="btn-primary" onclick="showScreen('screen-setup')">ENTRAR A LA ARENA</button>
+  <button class="btn-secondary" onclick="showScreen('screen-shop')">⚿ TIENDA DE HABILIDADES</button>
+  <button class="btn-secondary" onclick="showRules()">REGLAS</button>
+</div>
+
+<!-- SETUP -->
+<div class="screen" id="screen-setup">
+  <div style="width:100%;max-width:720px;display:flex;flex-direction:column;gap:16px">
+    <div class="setup-title">⚔ ELIGE TUS 4 CRIATURAS</div>
+    <div>
+      <div class="section-label" style="margin-bottom:8px">Modo de Habilidades</div>
+      <div class="mode-selector">
+        <button class="mode-btn selected" onclick="selectAbMode(this,'base')">⬢ BASE (1 habilidad)</button>
+        <button class="mode-btn" onclick="selectAbMode(this,'caos')">✦ CAOS (2 habilidades)</button>
+      </div>
+    </div>
+    <div>
+      <div class="section-label" style="margin-bottom:8px">Modo de Combate</div>
+      <div class="mode-selector">
+        <button class="mode-btn selected" onclick="selectMode(this,'estandar')">ESTÁNDAR</button>
+        <button class="mode-btn" onclick="selectMode(this,'desgaste')">DESGASTE</button>
+      </div>
+    </div>
+    <div class="picker-counter">Seleccionadas: <span id="pickerCount">0</span> / 4</div>
+    <div class="picker-grid" id="pickerGrid"></div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <button class="btn-secondary" onclick="showScreen('screen-title')">ATRÁS</button>
+      <button class="btn-primary" onclick="startGame()" id="startBtn" disabled>COMENZAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- SHOP -->
+<div class="screen" id="screen-shop">
+  <div style="width:100%;max-width:920px;display:flex;flex-direction:column;gap:16px">
+    <div class="setup-title">⚿ TIENDA DE HABILIDADES CRÍPTICAS</div>
+    <div class="section-label">Desbloquea conocimiento. Cada habilidad es un secreto biológico.</div>
+    <div class="victory-counter" style="align-self:center">TOKENS DISPONIBLES: <span id="shopTokens">0</span></div>
+    <div class="shop-grid" id="shopGrid"></div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button class="btn-secondary" onclick="showScreen('screen-title')">VOLVER AL MENÚ</button>
+    </div>
+  </div>
+</div>
+
+<!-- GAME -->
+<div class="screen" id="screen-game">
+  <div class="game-layout">
+    <div class="game-header">
+      <div class="game-logo">LÍMITE 10</div>
+      <div style="display:flex;gap:6px">
+        <div class="game-mode-badge" id="modeBadge">ESTÁNDAR</div>
+        <div class="game-mode-badge" id="abModeBadge">BASE</div>
+      </div>
+      <div class="round-counter">RONDA <span id="roundNum">1</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      <div><div class="player-label">RIVAL — PEDREGAL IA</div><div class="cards-row" id="enemyCards" style="margin-top:5px"></div></div>
+      <div class="arena-divider"><span class="arena-divider-text">VS</span></div>
+      <div><div class="player-label">TÚ — ESTRATEGA</div><div class="cards-row" id="playerCards" style="margin-top:5px"></div></div>
+    </div>
+    <div class="status-bar" id="statusBar">Selecciona una de tus criaturas para actuar</div>
+    <div class="action-panel">
+      <div class="action-title" id="actionTitle">ELIGE ACCIÓN</div>
+      <div class="action-buttons">
+        <button class="action-btn attack" id="btnAttack" onclick="chooseAction('attack')">⚔ ATACAR</button>
+        <button class="action-btn shield" id="btnShield" onclick="chooseAction('shield')">⬢ ESCUDO DIN.</button>
+        <button class="action-btn defend" id="btnDefend" onclick="chooseAction('defend')">🛡 DEFENDER</button>
+        <button class="action-btn transfer" id="btnTransfer" onclick="chooseAction('transfer')">⟳ TRANSFERIR</button>
+        <button class="action-btn special" id="btnSpecial" onclick="chooseAction('special')" style="display:none">✦ HABILIDAD</button>
+      </div>
+      <div class="transfer-panel" id="transferPanel">
+        <div class="transfer-title">TRANSFERENCIA 1:1 — TE EXPONES</div>
+        <div class="transfer-warning">⚠ El rival podrá elegir libremente a qué carta atacar este turno. Sin camuflaje.</div>
+        <div class="transfer-controls">
+          <button class="transfer-opt selected" id="trDH" onclick="selectTransferDir('def_to_hp',this)">DEF → HP</button>
+          <button class="transfer-opt" id="trHD" onclick="selectTransferDir('hp_to_def',this)">HP → DEF</button>
+          <button class="transfer-opt" id="trAH" onclick="selectTransferDir('atk_to_hp',this)">ATK → HP</button>
+          <button class="transfer-opt" id="trAD" onclick="selectTransferDir('atk_to_def',this)">ATK → DEF</button>
+        </div>
+      </div>
+      <button class="confirm-btn" id="confirmBtn" onclick="confirmAction()" disabled>CONFIRMAR</button>
+    </div>
+    <div class="battle-log" id="battleLog"></div>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="screen-result">
+  <div class="result-title" id="resultTitle">VICTORIA</div>
+  <div class="result-sub" id="resultSub">¡Dominaste el Pedregal!</div>
+  <div class="title-divider"></div>
+  <div class="unlock-msg" id="unlockMsg" style="display:none"></div>
+  <button class="btn-primary" onclick="showScreen('screen-setup')">NUEVA PARTIDA</button>
+  <button class="btn-secondary" onclick="showScreen('screen-shop')">⚿ TIENDA</button>
+  <button class="btn-secondary" onclick="showScreen('screen-title')">MENÚ</button>
+</div>
+
+<script>
+// ===== CATÁLOGO BIOLÓGICO (REPSA) =====
+const CREATURES = [
+  { id:'hormiga', name:'HORMIGA OBRERA NEGRA', emoji:'🐜', type:'Insecto / Tierra', atk:3, def:3, hp:4,
+    abilities: [
+      { id:'colmena', name:'FUERZA DE COLMENA', cryptic:'"La unidad multiplica al individuo..."',
+        desc:'Pasiva: si hay otra Hormiga viva, +1 ATK al inicio del turno (máx +3 acumulado).' },
+      { id:'feromona', name:'RASTRO DE FEROMONA', cryptic:'"Lo que una marca, todas siguen..."',
+        desc:'Una vez: marca a un rival. Todas tus cartas hacen +1 daño extra a esa criatura por el resto del juego.' }
+    ]},
+  { id:'vestigio', name:'VESTIGIO DE COCHINILLA', emoji:'🦴', type:'Detrito / Recurso', atk:0, def:6, hp:4,
+    abilities: [
+      { id:'ofrenda', name:'OFRENDA DE LA TIERRA', cryptic:'"De la muerte, la siguiente vida..."',
+        desc:'Al morir, otorga +2 DEF y +1 ATK a la siguiente carta aliada viva.' },
+      { id:'abono', name:'CICLO DE NUTRIENTES', cryptic:'"El abono alimenta al que viene..."',
+        desc:'Una vez: sacrifica 2 DEF para dar +2 ATK permanente a una aliada elegida.' }
+    ]},
+  { id:'lagartija', name:'LAGARTIJA DEL ÁRBOL', emoji:'🦎', type:'Reptil / Naturaleza', atk:4, def:3, hp:3,
+    abilities: [
+      { id:'autotomia', name:'AUTOTOMÍA CAUDAL', cryptic:'"Sacrifica una parte para salvar el todo..."',
+        desc:'Una vez: sacrifica 1 HP para esquivar completamente el próximo ataque recibido.' },
+      { id:'termorregulacion', name:'TERMORREGULACIÓN', cryptic:'"El sol es vida, la sombra es escudo..."',
+        desc:'Una vez: gana +2 ATK durante 2 turnos. Tras eso, -1 ATK permanente (agotamiento).' }
+    ]},
+  { id:'alacran', name:'ALACRÁN OSCURO', emoji:'🦂', type:'Arácnido / Oscuridad', atk:5, def:2, hp:3,
+    abilities: [
+      { id:'paralisis', name:'PICADURA PARALIZANTE', cryptic:'"Veneno que detiene el músculo..."',
+        desc:'Una vez: el rival no puede ATACAR ni TRANSFERIR el próximo turno.' },
+      { id:'neurotoxina', name:'NEUROTOXINA PROGRESIVA', cryptic:'"El veneno trabaja despacio..."',
+        desc:'Una vez: envenena a un rival. Pierde 1 HP por turno durante 3 turnos (ignora DEF).' }
+    ]},
+  { id:'ardilla', name:'ARDILLA DEL PEDREGAL', emoji:'🐿️', type:'Mamífero / Tierra', atk:3, def:4, hp:3,
+    abilities: [
+      { id:'madriguera', name:'REFUGIO EN MADRIGUERA', cryptic:'"Bajo la roca volcánica, intocable..."',
+        desc:'Una vez: se oculta 1 turno. Inmune a todo daño y habilidades.' },
+      { id:'reserva', name:'RESERVA DE BELLOTAS', cryptic:'"Guardar para el invierno..."',
+        desc:'Una vez: gana +3 DEF temporal. Si recibe ataque, la DEF extra se descarta tras absorber.' }
+    ]},
+  { id:'cochinilla', name:'COCHINILLA DE TIERRA', emoji:'🪲', type:'Invertebrado / Tierra', atk:2, def:5, hp:3,
+    abilities: [
+      { id:'conglobacion', name:'CONGLOBACIÓN', cryptic:'"El cuerpo se vuelve esfera, la esfera fortaleza..."',
+        desc:'Una vez: +3 DEF este turno pero pierde su ATK del turno (exoesqueleto).' },
+      { id:'humedad', name:'CÁMARA DE HUMEDAD', cryptic:'"El microclima es escudo..."',
+        desc:'Pasiva: cada 3 turnos recupera 1 DEF perdida (regeneración cuticular).' }
+    ]},
+  { id:'arana', name:'ARAÑA LOBO', emoji:'🕷️', type:'Arácnido / Tierra', atk:5, def:2, hp:3,
+    abilities: [
+      { id:'acecho', name:'ACECHO LETAL', cryptic:'"Espera. Calcula. Salta..."',
+        desc:'Una vez: si el rival tiene DEF < 3, el ataque ignora toda defensa.' },
+      { id:'embosc', name:'EMBOSCADA NOCTURNA', cryptic:'"El depredador elige el momento..."',
+        desc:'Una vez: ataca primero antes que cualquier acción rival este turno.' }
+    ]},
+  { id:'abeja', name:'ABEJA OBRERA AZTECA', emoji:'🐝', type:'Insecto / Polinizador', atk:3, def:4, hp:3,
+    abilities: [
+      { id:'diapausa', name:'DIAPAUSA REPRODUCTIVA', cryptic:'"Detener el tiempo biológico..."',
+        desc:'Una vez: duerme 2 turnos (inmune). Al despertar gana +2 DEF.' },
+      { id:'capullo', name:'CAPULLO SOCRÁTICO', cryptic:'"Sólo sé que nada sé... hasta romper la crisálida..."',
+        desc:'Una vez: se encapsula 1 turno. Al despertar, transfiere stats libremente sin exponerse.' }
+    ]},
+];
+
+// ===== STATE =====
+let gameMode = 'estandar';
+let abMode = 'base';
+let round = 1;
+let playerCards = [], enemyCards = [];
+let selCard = null, selAction = null;
+let transferDir = 'def_to_hp';
+let pendingCB = null;
+let paralyzedP = false, paralyzedE = false;
+let chosenIds = [];
+let exposedThisTurn = false;
+let unlockedAbilities = {};
+let totalWins = 0;
+let tokens = 0;
+
+// ===== ATK RACHA: constantes =====
+const ATK_STREAK_MAX = 3;   // rondas seguidas máx con misma carta atacando
+const ATK_COOLDOWN    = 5;  // rondas de cooldown tras agotar la racha
+
+// ===== PERSISTENCIA =====
+function saveProgress() {
+  try {
+    localStorage.setItem('limite10_progress', JSON.stringify({ unlockedAbilities, totalWins, tokens }));
+  } catch(e) {}
+}
+function loadProgress() {
+  try {
+    const data = JSON.parse(localStorage.getItem('limite10_progress') || '{}');
+    unlockedAbilities = data.unlockedAbilities || {};
+    totalWins = data.totalWins || 0;
+    tokens = data.tokens || 0;
+  } catch(e) { unlockedAbilities = {}; totalWins = 0; tokens = 0; }
+  CREATURES.forEach(c => {
+    if (!unlockedAbilities[c.id]) unlockedAbilities[c.id] = [c.abilities[0].id];
+    if (!unlockedAbilities[c.id].includes(c.abilities[0].id)) unlockedAbilities[c.id].unshift(c.abilities[0].id);
+  });
+  saveProgress();
+}
+
+// ===== HELPERS =====
+function getUnlockedAbs(creatureId) {
+  const u = unlockedAbilities[creatureId] || [];
+  return CREATURES.find(c=>c.id===creatureId).abilities.filter(a => u.includes(a.id));
+}
+
+function makeCard(t) {
+  const unlocked = getUnlockedAbs(t.id);
+  const activeAbs = abMode === 'caos' ? unlocked.slice(0,2) : unlocked.slice(0,1);
+  return { ...t, atk:t.atk, def:t.def, hp:t.hp,
+    maxAtk:t.atk, maxDef:t.def, maxHp:t.hp,
+    // --- Sistema nuevo: ya NO existe atkUsed por turno ---
+    atkStreakCount: 0,   // cuántas rondas seguidas ha atacado esta carta
+    atkCooldownLeft: 0, // rondas restantes de cooldown de ATK
+    dead:false, shell:false,
+    activeAbilities: activeAbs.map(a => ({...a, used:false})),
+    shieldCD: 0,
+    hibernating:0, diapausaTurns:0, dodgeNext:false,
+    poisonTurns:0,
+    markedBy:null,
+    termoBuff:0,
+    extraDef:0,
+    capulloTurn:false,
+    humedadCounter:0,
+    colmenaBonus:0
+  };
+}
+
+// Retorna true si la carta puede atacar este turno
+function canAttack(c) {
+  return !c.dead && c.atkCooldownLeft === 0;
+}
+
+// ===== PICKER =====
+function buildPicker() {
+  chosenIds = [];
+  document.getElementById('pickerCount').textContent = '0';
+  const g = document.getElementById('pickerGrid');
+  g.innerHTML = '';
+  CREATURES.forEach(c => {
+    const unlocked = unlockedAbilities[c.id] || [];
+    const slot1 = c.abilities[0];
+    const slot2 = c.abilities[1];
+    const s1Unlocked = unlocked.includes(slot1.id);
+    const s2Unlocked = unlocked.includes(slot2.id);
+    g.innerHTML += `
+      <div class="picker-card" id="pick_${c.id}" onclick="togglePick('${c.id}')">
+        <div class="picker-badge" id="badge_${c.id}">✓</div>
+        <div class="p-emoji">${c.emoji}</div>
+        <div class="p-name">${c.name}</div>
+        <div class="p-type">${c.type}</div>
+        <div class="p-stats"><span class="s-atk">ATK${c.atk}</span><span class="s-def">DEF${c.def}</span><span class="s-hp">HP${c.hp}</span></div>
+        <div class="ability-slot ${s1Unlocked?'unlocked':'locked'}">
+          <span class="lock-icon">${s1Unlocked?'✦':'🔒'}</span>
+          <span><b>${slot1.name}</b><br>${s1Unlocked?slot1.desc:slot1.cryptic}</span>
+        </div>
+        <div class="ability-slot ${s2Unlocked?'unlocked':'locked'}">
+          <span class="lock-icon">${s2Unlocked?'✦':'🔒'}</span>
+          <span><b>${slot2.name}</b><br>${s2Unlocked?slot2.desc:slot2.cryptic}</span>
+        </div>
+      </div>`;
+  });
+  document.getElementById('startBtn').disabled = true;
+}
+
+function togglePick(id) {
+  if (chosenIds.includes(id)) {
+    chosenIds = chosenIds.filter(x => x !== id);
+    document.getElementById('pick_'+id).classList.remove('chosen');
+  } else {
+    if (chosenIds.length >= 4) return;
+    chosenIds.push(id);
+    document.getElementById('pick_'+id).classList.add('chosen');
+  }
+  document.getElementById('pickerCount').textContent = chosenIds.length;
+  CREATURES.forEach(c => {
+    const el = document.getElementById('pick_'+c.id);
+    el.classList.toggle('disabled', chosenIds.length >= 4 && !chosenIds.includes(c.id));
+  });
+  document.getElementById('startBtn').disabled = chosenIds.length !== 4;
+}
+
+function selectMode(btn, mode) {
+  document.querySelectorAll('#screen-setup .mode-selector')[1].querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected'); gameMode = mode;
+}
+function selectAbMode(btn, mode) {
+  document.querySelectorAll('#screen-setup .mode-selector')[0].querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected'); abMode = mode;
+}
+
+// ===== START =====
+function startGame() {
+  if (chosenIds.length !== 4) return;
+  playerCards = chosenIds.map(id => makeCard(CREATURES.find(c => c.id === id)));
+  const rem = CREATURES.filter(c => !chosenIds.includes(c.id)).sort(() => Math.random() - 0.5);
+  const pool = rem.length >= 4 ? rem : [...rem, ...CREATURES.sort(() => Math.random()-0.5)].filter((c,i,a)=>a.findIndex(x=>x.id===c.id)===i);
+  enemyCards = pool.slice(0,4).map(c => makeCard(c));
+  round = 1; selCard = null; selAction = null;
+  paralyzedP = false; paralyzedE = false;
+  exposedThisTurn = false;
+  document.getElementById('modeBadge').textContent = gameMode.toUpperCase();
+  document.getElementById('abModeBadge').textContent = abMode.toUpperCase();
+  document.getElementById('roundNum').textContent = 1;
+  clearLog();
+  log('⚔ Batalla iniciada en el Pedregal de San Ángel.','system');
+  log(`Modo: ${abMode === 'caos' ? 'CAOS (2 habilidades)' : 'BASE (1 habilidad)'}`, 'system');
+  log(`ATK: máx ${ATK_STREAK_MAX} rondas seguidas → cooldown ${ATK_COOLDOWN} rondas.`, 'system');
+  renderGame(); showScreen('screen-game');
+}
+
+// ===== RENDER =====
+function renderGame() {
+  renderCards('enemyCards', enemyCards, false);
+  renderCards('playerCards', playerCards, true);
+  updatePanel();
+  updateStatusBar();
+}
+
+function updateStatusBar() {
+  const sb = document.getElementById('statusBar');
+  if (selCard === null) sb.textContent = 'Selecciona una criatura';
+  else if (!selAction) sb.textContent = `${playerCards[selCard].name} — Elige acción`;
+  else sb.textContent = `Acción: ${selAction.toUpperCase()} — Confirma para resolver`;
+}
+
+function renderCards(cid, cards, isP) {
+  const cont = document.getElementById(cid);
+  cont.innerHTML = '';
+  cards.forEach((c, i) => {
+    const sel = isP && selCard === i;
+    const canSel = isP && !c.dead && c.hibernating === 0 && c.diapausaTurns === 0 && !c.capulloTurn;
+    let statusText = '';
+    if (c.dead) statusText = '<span style="color:var(--dead);font-size:7px">ELIMINADA</span>';
+    else if (c.shell) statusText = '<span style="color:var(--def);font-size:7px">CASCARÓN</span>';
+    else if (c.hibernating > 0) statusText = `<span style="color:#3498db;font-size:7px">MADRIG. ${c.hibernating}T</span>`;
+    else if (c.diapausaTurns > 0) statusText = `<span style="color:#9b59b6;font-size:7px">DIAPAUSA ${c.diapausaTurns}T</span>`;
+    else if (c.capulloTurn) statusText = `<span style="color:#9b59b6;font-size:7px">CAPULLO</span>`;
+    else if (c.dodgeNext) statusText = `<span style="color:#2ecc71;font-size:7px">ESQUIVE LISTO</span>`;
+    else if (c.poisonTurns > 0) statusText = `<span style="color:var(--poison);font-size:7px">VENENO ${c.poisonTurns}T</span>`;
+    // ATK cooldown visible
+    else if (c.atkCooldownLeft > 0) statusText = `<span style="color:var(--atk);font-size:7px">ATK CD ${c.atkCooldownLeft}T</span>`;
+    // Racha activa (con advertencia si está a punto de agotar)
+    else if (c.atkStreakCount > 0) statusText = `<span style="color:var(--ember);font-size:7px">RACHA ATK ${c.atkStreakCount}/${ATK_STREAK_MAX}</span>`;
+
+    let abText = '';
+    c.activeAbilities.forEach(a => {
+      if (!a.used && !c.dead) abText += `<div class="c-ability">✦ ${a.name}</div>`;
+    });
+
+    let extraClasses = '';
+    if (sel) extraClasses += ' active-card';
+    if (c.dead) extraClasses += ' dead';
+    if (c.shell) extraClasses += ' shell';
+    if (c.poisonTurns > 0 && !c.dead) extraClasses += ' poisoned';
+    if (canSel && !selAction && isP) extraClasses += ' selectable';
+    if (!isP) extraClasses += ' enemy-card';
+    if (!isP && exposedThisTurn && !c.dead) extraClasses += ' exposed';
+
+    const onclickAttr = isP && !c.dead ? `onclick="selectCard(${i})"` : '';
+    const totalDef = c.def + c.extraDef;
+
+    cont.innerHTML += `
+      <div class="card${extraClasses}" ${onclickAttr}>
+        <div class="c-emoji">${c.emoji}</div>
+        <div class="c-name">${c.name}</div>
+        <div class="c-stats">
+          <div class="sbr"><div class="sbl atk">ATK</div><div class="sbt"><div class="sbf atk" style="width:${Math.max(0,(c.atk/10)*100)}%"></div></div><div class="sbv">${c.atk}</div></div>
+          <div class="sbr"><div class="sbl def">DEF</div><div class="sbt"><div class="sbf def" style="width:${Math.max(0,(totalDef/10)*100)}%"></div></div><div class="sbv">${totalDef}${c.extraDef>0?'*':''}</div></div>
+          <div class="sbr"><div class="sbl hp">HP</div><div class="sbt"><div class="sbf hp" style="width:${Math.max(0,(c.hp/10)*100)}%"></div></div><div class="sbv">${c.hp}</div></div>
+        </div>
+        <div class="c-status">${statusText}</div>
+        ${c.shieldCD>0?`<div class="c-shield-cd">⬢ ESC. CD ${c.shieldCD}T</div>`:''}
+        ${abText}
+      </div>`;
+  });
+}
+
+function updatePanel() {
+  const btn = document.getElementById('confirmBtn');
+  const title = document.getElementById('actionTitle');
+  const bSpec = document.getElementById('btnSpecial');
+  if (selCard === null) {
+    title.textContent = 'SELECCIONA UNA CRIATURA';
+    btn.disabled = true; bSpec.style.display='none';
+    document.getElementById('btnAttack').disabled=true;
+    document.getElementById('btnShield').disabled=true;
+    document.getElementById('btnDefend').disabled=true;
+    document.getElementById('btnTransfer').disabled=true;
+    return;
+  }
+  const c = playerCards[selCard];
+  title.textContent = `${c.emoji} ${c.name}`;
+  // Ataque bloqueado si está en cooldown o paralizado
+  document.getElementById('btnAttack').disabled = !canAttack(c) || paralyzedP;
+  document.getElementById('btnShield').disabled = c.shieldCD > 0;
+  document.getElementById('btnDefend').disabled = false;
+  document.getElementById('btnTransfer').disabled = paralyzedP;
+  const hasAbility = c.activeAbilities.some(a => !a.used);
+  bSpec.style.display = (hasAbility && !c.dead) ? '' : 'none';
+  btn.disabled = !selAction;
+  document.getElementById('transferPanel').classList.toggle('visible', selAction === 'transfer');
+}
+
+// ===== ACTIONS =====
+function selectCard(i) {
+  const c = playerCards[i];
+  if (c.dead) return;
+  if (c.hibernating > 0 || c.diapausaTurns > 0 || c.capulloTurn) {
+    log(`${c.name} está inactiva este turno.`,'system');
+    return;
+  }
+  selCard = i; selAction = null;
+  document.querySelectorAll('.action-btn').forEach(b => b.classList.remove('chosen'));
+  document.getElementById('transferPanel').classList.remove('visible');
+  renderGame();
+}
+
+function chooseAction(a) {
+  if (selCard === null) return;
+  const c = playerCards[selCard];
+  if (a === 'attack' && (!canAttack(c) || paralyzedP)) {
+    if (c.atkCooldownLeft > 0)
+      log(`${c.name} no puede atacar: cooldown de ATK (${c.atkCooldownLeft} rondas).`,'system');
+    else
+      log('No puedes atacar (paralizado).','system');
+    return;
+  }
+  if (a === 'shield' && c.shieldCD > 0) { log('Escudo Dinámico en cooldown.','system'); return; }
+  if (a === 'transfer' && paralyzedP) { log('No puedes transferir paralizado.','system'); return; }
+  selAction = a;
+  document.querySelectorAll('.action-btn').forEach(b => b.classList.remove('chosen'));
+  const map = {attack:'btnAttack',shield:'btnShield',defend:'btnDefend',transfer:'btnTransfer',special:'btnSpecial'};
+  if (map[a]) document.getElementById(map[a]).classList.add('chosen');
+  document.getElementById('confirmBtn').disabled = false;
+  document.getElementById('transferPanel').classList.toggle('visible', a === 'transfer');
+  updateStatusBar();
+}
+
+function selectTransferDir(d, btn) {
+  transferDir = d;
+  document.querySelectorAll('.transfer-opt').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function confirmAction() {
+  if (selCard === null || !selAction) return;
+  const pC = playerCards[selCard];
+  const eAlive = enemyCards.map((c,i)=>({c,i})).filter(x => !x.c.dead && x.c.hibernating === 0 && x.c.diapausaTurns === 0 && !x.c.capulloTurn);
+  if (eAlive.length === 0) { checkOver(); return; }
+
+  exposedThisTurn = (selAction === 'transfer');
+
+  let enemyTargetIdx = pickEnemyTarget(eAlive);
+  const eC = enemyCards[enemyTargetIdx];
+  const eAct = getEnemyAction(eC, enemyTargetIdx, pC);
+
+  resolveRound(pC, selCard, selAction, eC, enemyTargetIdx, eAct);
+}
+
+// ===== AI =====
+function pickEnemyTarget(eAlive) {
+  return eAlive[0].i;
+}
+
+function pickPlayerVictim() {
+  const alive = playerCards.map((c,i)=>({c,i})).filter(x => !x.c.dead && x.c.hibernating===0 && x.c.diapausaTurns===0 && !x.c.capulloTurn);
+  if (alive.length === 0) return -1;
+  alive.sort((a,b) => (a.c.hp + a.c.def) - (b.c.hp + b.c.def));
+  return alive[0].i;
+}
+
+function getEnemyAction(c, i, playerAttacker) {
+  if (paralyzedE) {
+    return c.shieldCD === 0 ? 'shield' : 'defend';
+  }
+  if (c.hibernating > 0 || c.diapausaTurns > 0 || c.capulloTurn) return 'skip';
+  const availAb = c.activeAbilities.find(a => !a.used);
+  if (availAb && c.hp <= 2 && Math.random() > 0.3) return 'special';
+  if (playerAttacker && canAttack(playerAttacker) && c.shieldCD === 0 && c.hp <= 3 && Math.random() > 0.4) return 'shield';
+  if (canAttack(c) && c.atk >= 3 && Math.random() > 0.25) return 'attack';
+  if (availAb && Math.random() > 0.6) return 'special';
+  if (canAttack(c) && Math.random() > 0.4) return 'attack';
+  if (c.hp >= 4 && c.def <= 2 && Math.random() > 0.5) return 'transfer_def';
+  return 'defend';
+}
+
+// ===== STREAK TRACKING =====
+// Registra que una carta atacó este turno y gestiona la racha
+function registerAttack(c, lines) {
+  c.atkStreakCount++;
+  if (c.atkStreakCount >= ATK_STREAK_MAX) {
+    c.atkStreakCount = 0;
+    c.atkCooldownLeft = ATK_COOLDOWN;
+    lines.push(`🔥 ${c.emoji} ${c.name} alcanzó ${ATK_STREAK_MAX} ataques seguidos — ATK en cooldown ${ATK_COOLDOWN} rondas.`);
+  }
+}
+
+// Tick de cooldowns de ATK (llamado al inicio del tick de pasivas)
+function tickAtkCooldowns(lines) {
+  [...playerCards, ...enemyCards].forEach(c => {
+    if (c.dead) return;
+    if (c.atkCooldownLeft > 0) {
+      c.atkCooldownLeft--;
+      if (c.atkCooldownLeft === 0) {
+        c.atkStreakCount = 0;
+        lines.push(`✓ ${c.emoji} ${c.name}: ATK refrescado — puede atacar de nuevo.`);
+      }
+    }
+    // Si no atacó este turno, resetea la racha (la racha debe ser CONSECUTIVA)
+    // El reset lo haremos al final del turno via flag didAttackThisTurn
+  });
+}
+
+// ===== RESOLVE =====
+function resolveRound(pC, pI, pAct, eC, eI, eAct) {
+  const lines = [];
+  let bigText = 'RONDA', bigColor = 'var(--ember)';
+
+  tickPassives(lines);
+
+  const pAtks = pAct === 'attack', eAtks = eAct === 'attack';
+
+  let realPlayerTarget = pI;
+  if (exposedThisTurn && eAtks) {
+    const victim = pickPlayerVictim();
+    if (victim !== -1 && victim !== pI) {
+      realPlayerTarget = victim;
+      lines.push(`⚠ EXPOSICIÓN: el rival apunta a ${playerCards[victim].emoji} ${playerCards[victim].name}`);
+    }
+  }
+  const targetCard = playerCards[realPlayerTarget];
+
+  bigText = (pAtks || eAtks || pAct==='special' || eAct==='special') ? 'CHOQUE' : 'ANULACIÓN';
+  bigColor = bigText === 'CHOQUE' ? 'var(--blood)' : 'var(--mist)';
+
+  // Acciones del jugador
+  if (pAct === 'special') {
+    applySpecialMenu(pC, eC, 'player', lines);
+  } else if (pAct === 'shield') {
+    pC.pendingShield = true;
+    lines.push(`⬢ ${pC.name} activa ESCUDO DINÁMICO.`);
+  } else if (pAtks) {
+    let dmg = pC.atk;
+    if (eC.markedBy === pC.id || playerCards.some(p => eC.markedBy && p.activeAbilities.some(a=>a.used && a.id==='feromona'))) {
+      dmg += 1;
+      lines.push(`🐜 Feromona: +1 daño extra a ${eC.name}`);
+    }
+    lines.push(`⚔ ${pC.emoji} ${pC.name} ATACA → ${dmg} dmg a ${eC.name}`);
+    pC.pendingAtkDmg = dmg;
+    registerAttack(pC, lines);
+  } else if (pAct === 'defend') {
+    pC.def = Math.min(pC.def + 1, 10);
+    lines.push(`🛡 ${pC.name} se defiende (+1 DEF temporal: ${pC.def}).`);
+    pC.tempDefend = true;
+    // No atacó: resetear racha
+    if (pC.atkStreakCount > 0) { pC.atkStreakCount = 0; }
+  } else if (pAct === 'transfer') {
+    doTransfer(pC, transferDir, 'Tú', lines);
+    if (pC.atkStreakCount > 0) { pC.atkStreakCount = 0; }
+  }
+
+  // Acciones del rival
+  if (eAct === 'special') {
+    applySpecialAuto(eC, targetCard, 'enemy', lines);
+  } else if (eAct === 'shield') {
+    eC.pendingShield = true;
+    lines.push(`⬢ ${eC.name} activa ESCUDO DINÁMICO.`);
+  } else if (eAtks) {
+    let dmg = eC.atk;
+    if (targetCard.markedBy === eC.id) { dmg += 1; lines.push(`🐜 Feromona rival: +1 daño extra`); }
+    lines.push(`⚔ ${eC.emoji} ${eC.name} ATACA → ${dmg} dmg a ${targetCard.name}`);
+    eC.pendingAtkDmg = dmg;
+    registerAttack(eC, lines);
+  } else if (eAct === 'defend') {
+    eC.def = Math.min(eC.def + 1, 10);
+    lines.push(`🛡 ${eC.name} se defiende (+1 DEF: ${eC.def}).`);
+    eC.tempDefend = true;
+    if (eC.atkStreakCount > 0) { eC.atkStreakCount = 0; }
+  } else if (eAct === 'transfer_def') {
+    doTransfer(eC, eC.hp >= eC.def ? 'hp_to_def' : 'def_to_hp', 'Rival', lines);
+    if (eC.atkStreakCount > 0) { eC.atkStreakCount = 0; }
+  }
+
+  // ============= APLICAR DAÑOS Y ESCUDOS =============
+  if (eC.pendingAtkDmg > 0) {
+    if (targetCard.dodgeNext) {
+      targetCard.dodgeNext = false;
+      lines.push(`🦎 AUTOTOMÍA: ${targetCard.name} esquiva el ataque`);
+    } else if (targetCard.pendingShield) {
+      const incomingDmg = eC.pendingAtkDmg;
+      const need = incomingDmg + 1 - targetCard.def;
+      if (need > 0) {
+        const cost = Math.min(need, targetCard.hp - 1);
+        if (cost < need) {
+          lines.push(`⬢✗ ${targetCard.name} no tiene HP suficiente para ESCUDO PERFECTO. Absorbe parcial.`);
+          targetCard.def += cost; targetCard.hp -= cost;
+        } else {
+          targetCard.def += need;
+          lines.push(`⬢✓ ESCUDO PERFECTO: DEF ajustada a ${targetCard.def} (>${incomingDmg})`);
+        }
+      } else {
+        lines.push(`⬢✓ ESCUDO PERFECTO: DEF ya supera el ataque`);
+      }
+      doAtk(incomingDmg, targetCard, realPlayerTarget, true, lines, false);
+      targetCard.maxDef = Math.max(1, targetCard.maxDef - 1);
+      targetCard.def = Math.max(0, targetCard.def - 1);
+      targetCard.shieldCD = 5;
+      lines.push(`⬢ Desgaste: ${targetCard.name} pierde -1 DEF permanente. Cooldown: 5T`);
+      targetCard.pendingShield = false;
+    } else {
+      doAtk(eC.pendingAtkDmg, targetCard, realPlayerTarget, true, lines, false);
+    }
+    eC.pendingAtkDmg = 0;
+  }
+
+  if (pC.pendingAtkDmg > 0) {
+    if (eC.dodgeNext) {
+      eC.dodgeNext = false;
+      lines.push(`🦎 AUTOTOMÍA: ${eC.name} esquiva el ataque`);
+    } else if (eC.pendingShield) {
+      const incomingDmg = pC.pendingAtkDmg;
+      const need = incomingDmg + 1 - eC.def;
+      if (need > 0 && eC.hp - 1 >= need) {
+        eC.def += need;
+        lines.push(`⬢✓ ESCUDO PERFECTO RIVAL: DEF=${eC.def}`);
+      } else {
+        lines.push(`⬢✗ Escudo rival insuficiente.`);
+      }
+      doAtk(incomingDmg, eC, eI, false, lines, false);
+      eC.maxDef = Math.max(1, eC.maxDef - 1);
+      eC.def = Math.max(0, eC.def - 1);
+      eC.shieldCD = 5;
+      lines.push(`⬢ Desgaste rival: -1 DEF permanente. CD 5T`);
+      eC.pendingShield = false;
+    } else {
+      doAtk(pC.pendingAtkDmg, eC, eI, false, lines, false);
+    }
+    pC.pendingAtkDmg = 0;
+  }
+
+  // Limpiar escudos no usados
+  [pC, eC].forEach(c => {
+    if (c.pendingShield) {
+      c.pendingShield = false;
+      c.shieldCD = 5;
+      c.maxDef = Math.max(1, c.maxDef - 1);
+      c.def = Math.max(0, c.def - 1);
+      lines.push(`⬢ ${c.name} preparó escudo sin recibir ataque. Desgaste igual: -1 DEF perm, CD 5T.`);
+    }
+    if (c.tempDefend) c.tempDefend = false;
+  });
+
+  [...playerCards, ...enemyCards].forEach(c => {
+    if (c.def > 10) c.def = 10;
+    if (c.atk > 10) c.atk = 10;
+    if (c.hp > 12) c.hp = 12;
+  });
+
+  if (paralyzedP) { paralyzedP = false; lines.push('✓ Tu parálisis terminó.'); }
+  if (paralyzedE) { paralyzedE = false; lines.push('✓ Parálisis del rival terminó.'); }
+
+  exposedThisTurn = false;
+
+  round++;
+  document.getElementById('roundNum').textContent = round;
+  selCard = null; selAction = null;
+
+  showClash(bigText, bigColor, lines.join('<br>'), () => {
+    lines.forEach(l => {
+      let cls = 'log-line';
+      if (l.startsWith('⚔')) cls = 'attack-log';
+      else if (l.includes('☠') || l.includes('ELIMINADA')) cls = 'kill';
+      else if (l.includes('✦') || l.includes('🦎') || l.includes('🦂') || l.includes('🐝') || l.includes('🕷️')) cls = 'ability';
+      else if (l.includes('⬢')) cls = 'shield-log';
+      else if (l.includes('⚠') || l.includes('HERENCIA') || l.includes('🔥') || l.includes('✓')) cls = 'system';
+      log(l, cls);
+    });
+    renderGame();
+    checkOver();
+  });
+}
+
+// ===== TRANSFERENCIA =====
+function doTransfer(c, dir, who, lines) {
+  let from, to, fromName, toName;
+  if (dir === 'def_to_hp') { from='def'; to='hp'; fromName='DEF'; toName='HP'; }
+  else if (dir === 'hp_to_def') { from='hp'; to='def'; fromName='HP'; toName='DEF'; }
+  else if (dir === 'atk_to_hp') { from='atk'; to='hp'; fromName='ATK'; toName='HP'; }
+  else if (dir === 'atk_to_def') { from='atk'; to='def'; fromName='ATK'; toName='DEF'; }
+
+  if (c[from] < 1) { lines.push(`⟳✗ ${who} (${c.name}) no tiene ${fromName} para transferir.`); return; }
+  if (c[to] >= 10) { lines.push(`⟳✗ ${who} (${c.name}) ${toName} ya está en máximo (10). Transferencia bloqueada.`); return; }
+  c[from]--; c[to]++;
+  lines.push(`⟳ ${who} (${c.name}): ${fromName}→${toName} 1pt | ATK${c.atk} DEF${c.def} HP${c.hp}`);
+}
+
+// ===== TICK =====
+function tickPassives(lines) {
+  // Primero: tick de cooldowns de ATK
+  tickAtkCooldowns(lines);
+
+  [...playerCards, ...enemyCards].forEach(c => {
+    if (c.dead) return;
+    if (c.shieldCD > 0) c.shieldCD--;
+    if (c.hibernating > 0) {
+      c.hibernating--;
+      if (c.hibernating === 0) lines.push(`${c.emoji} ${c.name} sale de la madriguera.`);
+    }
+    if (c.diapausaTurns > 0) {
+      c.diapausaTurns--;
+      if (c.diapausaTurns === 0) {
+        c.def = Math.min(c.def + 2, 10);
+        lines.push(`🐝 ${c.name} despierta de diapausa: +2 DEF (${c.def})`);
+      }
+    }
+    if (c.capulloTurn) {
+      c.capulloTurn = false;
+      lines.push(`🐝 ${c.name} rompe el capullo.`);
+    }
+    if (c.poisonTurns > 0) {
+      c.poisonTurns--;
+      c.hp = Math.max(0, c.hp - 1);
+      lines.push(`☠ ${c.name} sufre VENENO (-1 HP, ignora DEF) → HP${c.hp}`);
+      if (c.hp === 0) { c.dead = true; lines.push(`☠ ${c.emoji} ${c.name} muere por veneno.`); }
+    }
+    if (c.termoBuff > 0) {
+      c.termoBuff--;
+      if (c.termoBuff === 0) {
+        c.atk = Math.max(1, c.atk - 3);
+        c.maxAtk = Math.max(1, c.maxAtk - 1);
+        lines.push(`🦎 ${c.name}: termorregulación termina. Agotamiento: -1 ATK perm.`);
+      }
+    }
+    if (c.id === 'cochinilla' && c.activeAbilities.some(a=>a.id==='humedad')) {
+      c.humedadCounter = (c.humedadCounter || 0) + 1;
+      if (c.humedadCounter >= 3 && c.def < c.maxDef) {
+        c.def++;
+        c.humedadCounter = 0;
+        lines.push(`🪲 Cámara de Humedad: ${c.name} regenera 1 DEF (${c.def})`);
+      }
+    }
+  });
+  ['hormiga'].forEach(id => {
+    [playerCards, enemyCards].forEach(deck => {
+      const hormigas = deck.filter(c => !c.dead && c.id === id);
+      if (hormigas.length >= 2) {
+        hormigas.forEach(h => {
+          if (h.colmenaBonus < 3) {
+            h.atk = Math.min(h.atk + 1, 10);
+            h.colmenaBonus++;
+            lines.push(`🐜 Fuerza de Colmena: ${h.name} +1 ATK (acum ${h.colmenaBonus}/3)`);
+          }
+        });
+      }
+    });
+  });
+}
+
+// ===== ATAQUE =====
+function doAtk(dmg, def, defI, isP, lines, ignDef) {
+  if (!ignDef && def.def > 0) {
+    const abs = Math.min(def.def, dmg);
+    def.def -= abs;
+    dmg -= abs;
+    lines.push(`🛡 DEF de ${def.name} absorbe ${abs} → DEF=${def.def}`);
+  }
+  if (dmg > 0 && def.hp > 0) {
+    def.hp = Math.max(0, def.hp - dmg);
+    lines.push(`❤ ${def.name} HP=${def.hp}`);
+  }
+  if (def.hp <= 0) {
+    if (def.def > 0) {
+      def.shell = true;
+      lines.push(`💀 ${def.emoji} ${def.name} entra en CASCARÓN (DEF=${def.def})`);
+    } else {
+      killCard(def, defI, isP, lines);
+    }
+  }
+}
+
+function killCard(c, i, isP, lines) {
+  if (c.id === 'vestigio' && c.activeAbilities.some(a => a.id === 'ofrenda' && !a.used)) {
+    const deck = isP ? playerCards : enemyCards;
+    const next = deck.find((x,j) => j > i && !x.dead);
+    if (next) {
+      next.def = Math.min(next.def + 2, 10);
+      next.atk = Math.min(next.atk + 1, 10);
+      lines.push(`🦴 OFRENDA: ${next.name} hereda +2 DEF, +1 ATK (${next.def}/${next.atk})`);
+    }
+  }
+  c.dead = true; c.shell = false;
+  lines.push(`☠ ${c.emoji} ${c.name} ELIMINADA`);
+}
+
+// ===== HABILIDADES =====
+function applySpecialMenu(c, target, side, lines) {
+  const ab = c.activeAbilities.find(a => !a.used);
+  if (!ab) { lines.push(`✗ ${c.name} no tiene habilidades disponibles.`); return; }
+  ab.used = true;
+  lines.push(`✦ HABILIDAD: ${c.emoji} ${c.name} — ${ab.name}`);
+  executeAbility(ab.id, c, target, side, lines);
+}
+
+function applySpecialAuto(c, target, side, lines) {
+  const ab = c.activeAbilities.find(a => !a.used);
+  if (!ab) return;
+  ab.used = true;
+  lines.push(`✦ HABILIDAD RIVAL: ${c.emoji} ${c.name} — ${ab.name}`);
+  executeAbility(ab.id, c, target, side, lines);
+}
+
+function executeAbility(abId, c, target, side, lines) {
+  switch(abId) {
+    case 'colmena':
+      lines.push(`🐜 Activación: bonus colmena reforzado.`); break;
+    case 'feromona':
+      target.markedBy = c.id;
+      lines.push(`🐜 Feromona: ${target.name} marcada. +1 dmg de todas tus aliadas a esta carta.`); break;
+    case 'ofrenda':
+      lines.push(`🦴 Ofrenda lista: se activará al morir.`); break;
+    case 'abono':
+      const deck = side==='player' ? playerCards : enemyCards;
+      const ally = deck.find(x => !x.dead && x !== c);
+      if (ally && c.def >= 2) {
+        c.def -= 2; ally.atk = Math.min(ally.atk + 2, 10); ally.maxAtk += 2;
+        lines.push(`🦴 Abono: ${c.name} -2 DEF → ${ally.name} +2 ATK perm (${ally.atk})`);
+      } else { lines.push(`🦴 No hay condiciones para Abono.`); }
+      break;
+    case 'autotomia':
+      if (c.hp >= 2) { c.hp -= 1; c.dodgeNext = true; lines.push(`🦎 Autotomía: -1 HP, esquive cargado.`); }
+      else lines.push(`🦎 ${c.name} sin HP suficiente para Autotomía.`);
+      break;
+    case 'termorregulacion':
+      c.atk = Math.min(c.atk + 2, 10); c.termoBuff = 2;
+      lines.push(`🦎 Termorregulación: +2 ATK por 2 turnos. Después: -1 ATK perm.`); break;
+    case 'paralisis':
+      if (side === 'player') paralyzedE = true; else paralyzedP = true;
+      lines.push(`🦂 Picadura: rival no podrá ATACAR ni TRANSFERIR el próximo turno.`); break;
+    case 'neurotoxina':
+      target.poisonTurns = 3;
+      lines.push(`🦂 Neurotoxina: ${target.name} envenenada 3 turnos (1 HP/T, ignora DEF).`); break;
+    case 'madriguera':
+      c.hibernating = 1;
+      lines.push(`🐿️ ${c.name} en madriguera 1 turno: inmune.`); break;
+    case 'reserva':
+      c.extraDef = 3;
+      lines.push(`🐿️ Reserva: +3 DEF temp (se descarta tras absorber daño).`); break;
+    case 'conglobacion':
+      c.def = Math.min(c.def + 3, 10);
+      // Solo bloquea el ataque si ya lo eligió usar. No afecta atkStreak.
+      lines.push(`🪲 Conglobación: +3 DEF (=${c.def}), pierde ATK del turno.`); break;
+    case 'humedad':
+      lines.push(`🪲 Humedad activa (regen pasiva cada 3 turnos).`); break;
+    case 'acecho':
+      if (target.def < 3) {
+        lines.push(`🕷️ ACECHO: ataque ignora toda DEF de ${target.name}.`);
+        const i = (side==='player'?enemyCards:playerCards).findIndex(x => x === target);
+        doAtk(c.atk, target, i, side==='enemy', lines, true);
+        registerAttack(c, lines);
+      } else { lines.push(`🕷️ Acecho fallido (DEF rival ≥3).`); }
+      break;
+    case 'embosc':
+      lines.push(`🕷️ EMBOSCADA: ataque preventivo.`);
+      const i = (side==='player'?enemyCards:playerCards).findIndex(x => x === target);
+      doAtk(c.atk, target, i, side==='enemy', lines, false);
+      registerAttack(c, lines);
+      break;
+    case 'diapausa':
+      c.diapausaTurns = 2;
+      lines.push(`🐝 Diapausa: inmune 2 turnos. Despierta con +2 DEF.`); break;
+    case 'capullo':
+      c.capulloTurn = true;
+      lines.push(`🐝 Capullo Socrático: inmune 1 turno. Al despertar transferirás libremente.`); break;
+  }
+}
+
+// ===== GAME OVER =====
+function checkOver() {
+  const pA = playerCards.filter(c=>!c.dead).length;
+  const eA = enemyCards.filter(c=>!c.dead).length;
+  if (gameMode==='desgaste') {
+    // En modo desgaste ya no existe "atkUsed" permanente, se mantiene por cooldown
+    // El modo desgaste gana quien tiene cartas vivas con ATK disponible
+    const pN = playerCards.filter(c=>!c.dead && canAttack(c)).length===0;
+    const eN = enemyCards.filter(c=>!c.dead && canAttack(c)).length===0;
+    if (pN&&!eN){endGame(false,'Sin ataques disponibles');return;}
+    if (eN&&!pN){endGame(true,'Agotaste los ataques del rival');return;}
+    if (pN&&eN){endGame(null,'Empate por agotamiento');return;}
+  }
+  if (pA===0&&eA===0){endGame(null,'Aniquilación mutua');return;}
+  if (pA===0){endGame(false,'Tus criaturas fueron eliminadas');return;}
+  if (eA===0){endGame(true,'¡Dominaste el Pedregal!');return;}
+}
+
+function endGame(win, reason) {
+  setTimeout(() => {
+    const t = document.getElementById('resultTitle');
+    const um = document.getElementById('unlockMsg');
+    um.style.display = 'none';
+    if (win===null){t.textContent='EMPATE';t.className='result-title';t.style.color='var(--mist)';}
+    else if (win){
+      t.textContent='VICTORIA';t.className='result-title win';
+      totalWins++;
+      const earned = abMode === 'caos' ? 2 : 1;
+      tokens += earned;
+      saveProgress();
+      um.style.display = 'block';
+      um.innerHTML = `+${earned} TOKEN${earned>1?'S':''} GANADO${earned>1?'S':''}<br><span style="font-size:13px;color:var(--mist)">Total tokens: ${tokens}</span>`;
+    }
+    else{t.textContent='DERROTA';t.className='result-title lose';}
+    document.getElementById('resultSub').textContent = reason;
+    showScreen('screen-result');
+  }, 500);
+}
+
+// ===== TIENDA =====
+function buildShop() {
+  const grid = document.getElementById('shopGrid');
+  document.getElementById('shopTokens').textContent = tokens;
+  grid.innerHTML = '';
+  CREATURES.forEach(c => {
+    c.abilities.forEach((ab, idx) => {
+      const isUnlocked = (unlockedAbilities[c.id] || []).includes(ab.id);
+      const cost = idx === 0 ? 0 : 3;
+      grid.innerHTML += `
+        <div class="shop-item ${isUnlocked?'unlocked':(tokens>=cost?'affordable':'')}">
+          <div class="shop-header">
+            <div class="shop-emoji">${c.emoji}</div>
+            <div class="shop-creature">${c.name}</div>
+          </div>
+          <div class="shop-ab-name ${isUnlocked?'unlocked':''}">${isUnlocked?'✦':'🔒'} ${ab.name}</div>
+          ${isUnlocked
+            ? `<div class="shop-full-desc">${ab.desc}</div>`
+            : `<div class="shop-cryptic">${ab.cryptic}</div>`}
+          <div class="shop-cost">
+            <div class="shop-cost-text">${isUnlocked ? 'DESBLOQUEADA' : `COSTO: ${cost} TOKENS`}</div>
+            ${isUnlocked
+              ? `<span class="shop-status-unlocked">✓</span>`
+              : (idx === 0
+                  ? `<span class="shop-status-unlocked">INICIAL</span>`
+                  : `<button class="shop-buy" onclick="buyAbility('${c.id}','${ab.id}',${cost})" ${tokens<cost?'disabled':''}>DESBLOQUEAR</button>`)
+            }
+          </div>
+        </div>`;
+    });
+  });
+}
+
+function buyAbility(creatureId, abilityId, cost) {
+  if (tokens < cost) return;
+  tokens -= cost;
+  if (!unlockedAbilities[creatureId]) unlockedAbilities[creatureId] = [];
+  if (!unlockedAbilities[creatureId].includes(abilityId)) unlockedAbilities[creatureId].push(abilityId);
+  saveProgress();
+  buildShop();
+  updateHeaderCounters();
+}
+
+function updateHeaderCounters() {
+  const wc = document.getElementById('winCounter');
+  const tc = document.getElementById('tokenCounter');
+  if (wc) wc.textContent = totalWins;
+  if (tc) tc.textContent = tokens;
+}
+
+// ===== UI =====
+function showClash(text, color, result, cb) {
+  document.getElementById('clashText').textContent = text;
+  document.getElementById('clashText').style.color = color;
+  document.getElementById('clashResult').innerHTML = result;
+  document.getElementById('clashOverlay').classList.add('visible');
+  pendingCB = cb;
+}
+
+function dismissClash() {
+  document.getElementById('clashOverlay').classList.remove('visible');
+  if (pendingCB) { pendingCB(); pendingCB = null; }
+}
+
+function log(msg, type='log-line') {
+  const el = document.getElementById('battleLog');
+  const d = document.createElement('div');
+  d.className = 'log-line ' + type;
+  d.textContent = `[R${round}] ${msg}`;
+  el.appendChild(d); el.scrollTop = el.scrollHeight;
+}
+function clearLog() { document.getElementById('battleLog').innerHTML = ''; }
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id==='screen-setup') buildPicker();
+  if (id==='screen-shop') buildShop();
+  if (id==='screen-title') updateHeaderCounters();
+}
+
+function showRules() {
+  alert("LÍMITE 10 — REGLAS v2.1\n\n" +
+    "OBJETIVO: Eliminar las 4 criaturas rivales.\n\n" +
+    "ACCIONES POR TURNO:\n" +
+    "⚔ ATACAR: Daño = ATK. Una carta puede atacar libremente, PERO:\n" +
+    "   — Máximo 3 rondas CONSECUTIVAS de ataque con la misma carta.\n" +
+    "   — Tras 3 ataques seguidos: cooldown de 5 rondas sin poder atacar.\n" +
+    "   — Si en algún turno la carta no ataca, su racha se resetea a 0.\n" +
+    "   — El cooldown aparece como 'ATK CD Xt' en la carta.\n" +
+    "⬢ ESCUDO DINÁMICO: Tu DEF se ajusta para superar el ATK rival por +1.\n" +
+    "   Costo: -1 DEF permanente + cooldown de 5 turnos.\n" +
+    "🛡 DEFENDER: +1 DEF temporal estático. Resetea la racha de ATK.\n" +
+    "⟳ TRANSFERIR: Mueve 1 punto entre stats (DEF↔HP, ATK→HP/DEF).\n" +
+    "   ⚠ TE EXPONES: el rival puede atacar a CUALQUIERA de tus cartas.\n" +
+    "   Bloqueo automático si excedes 10 puntos. Resetea la racha de ATK.\n" +
+    "✦ HABILIDAD: Poder único biológico.\n\n" +
+    "MODOS DE HABILIDAD:\n" +
+    "BASE: 1 habilidad por carta.\n" +
+    "CAOS: 2 habilidades por carta (requiere desbloqueo en tienda).\n\n" +
+    "TIENDA: Gana tokens por victoria (1 base / 2 caos).\n");
+}
+
+// Init
+loadProgress();
+updateHeaderCounters();
+buildPicker();
+</script>
+</body>
+</html>
